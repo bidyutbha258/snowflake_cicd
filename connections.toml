@@ -1,0 +1,28 @@
+
+# Name the profile to match your environment (e.g., "prod", "dev")
+[connections.prod]
+account   = "SLALOM-SNOWFLAKE_ILABS_VANCOUVER.snowflakecomputing.com"       # e.g., abcde-xy12345
+user      = "BIDYUT.B@SLALOM.COM"     # your SSO-mapped Snowflake LOGIN_NAME
+role      = "SNOWFLAKE-ILABS-VANCOUVER-ADMINS"
+warehouse = "DEMO_WH"
+database  = "DEMO_DB"
+schema    = "PUBLIC"
+
+# Important: schemachange expects OAuth settings in config, not CLI flags
+authenticator = "oauth"
+
+# Option A — provide the ACCESS TOKEN directly (recommended for CI):
+# We'll inject OAUTH_ACCESS_TOKEN from the workflow step.
+token = "${OAUTH_ACCESS_TOKEN}"
+
+# Option B — let schemachange request the token (only if your version/config supports it):
+# [connections.prod.oauth_config]
+# token-provider-url = "${AZURE_TOKEN_ENDPOINT}"
+# client-id          = "${AZURE_CLIENT_ID}"
+# client-secret      = "${AZURE_CLIENT_SECRET}"
+# scope              = "api://<your-resource-app-id>/.default"
+#
+# Note: If this block is missing but authenticator is "oauth", schemachange can raise
+# a `NoneType ... 'token-provider-url'` error (seen in the community thread),
+# which is why Option A (injecting token) is the most predictable in CI. [1](https://stackoverflow.com/questions/78988545/schemachange-snowflake-and-oauth-authentication-in-github-action)
+``
