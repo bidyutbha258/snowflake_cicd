@@ -2,8 +2,7 @@ name: snowflake-devops-demo
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
     paths:
       - 'migrations/**'
   workflow_dispatch:
@@ -21,39 +20,38 @@ jobs:
         with:
           python-version: 3.8.x
 
-      # Step 1: Get OAuth Access Token from Azure AD
+      - name: Install schemachange and helpers
+        run: |
+          python --version
+          pip install --upgrade pip
+          pip install schemachange jq
+
+      # Get Azure AD access token (client credentials flow)
+      # This is the non-interactive flow Snowflake recommends for CI/CD with External OAuth.
       - name: Get Azure AD OAuth Token
         id: oauth
         run: |
-          TOKEN=$(curl -X POST ${{ secrets.AZURE_TOKEN_ENDPOINT }} \
+          TOKEN=$(curl -s -X POST "${{ secrets.AZURE_TOKEN_ENDPOINT }}" \
             -H "Content-Type: application/x-www-form-urlencoded" \
             -d "client_id=${{ secrets.AZURE_CLIENT_ID }}" \
             -d "client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
             -d "grant_type=client_credentials" \
-            -d "scope=${{ secrets.APPLICATION_ID }}/.default" \
-            | jq -r .access_token)
+            -d "scope=${{ secrets.APPLICATION_ID }}/.default" | jq -r .access_token)
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "Failed to acquire OAuth token"; exit 1
+          fi
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Install schemachange
-        run: pip install schemachange
-
-      - name: Run schemachange using OAuth Token
+      - name: Run schemachange with OAuth (via connections.toml)
         env:
-          SF_ACCOUNT: ${{ secrets.SF_ACCOUNT }}
-          SF_USER: ${{ secrets.SF_USER }}       # Mapped SSO login
-          SF_ROLE: ${{ secrets.SF_ROLE }}
-          SF_WAREHOUSE: ${{ secrets.SF_WAREHOUSE }}
-          SF_DATABASE: ${{ secrets.SF_DATABASE }}
-          OAUTH_TOKEN: ${{ steps.oauth.outputs.token }}
+          # Provide the access token to the TOML via env var substitution
+          OAUTH_ACCESS_TOKEN: ${{ steps.oauth.outputs.token }}
+          # (Optional) If you parameterize TOML with env vars for acct/db/etc, export them here too
         run: |
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          # Use your connection profile name here (e.g., 'prod')
           schemachange \
-            -f $GITHUB_WORKSPACE/migrations \
-            -a $SF_ACCOUNT \
-            -u $SF_USER \
-            --authenticator oauth \
-            --token $OAUTH_TOKEN \
-            -r $SF_ROLE \
-            -w $SF_WAREHOUSE \
-            -d $SF_DATABASE \
-            -c $SF_DATABASE.SCHEMACHANGE.CHANGE_HISTORY \
+            --connection-name prod \
+            -f "$GITHUB_WORKSPACE/migrations" \
+            -c "YOUR_DATABASE.SCHEMACHANGE.CHANGE_HISTORY" \
             --create-change-history-table
