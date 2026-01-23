@@ -1,7 +1,7 @@
 
 # Name the profile to match your environment (e.g., "prod", "dev")
 [connections.prod]
-account   = "SLALOM-SNOWFLAKE_ILABS_VANCOUVER.snowflakecomputing.com"       # e.g., abcde-xy12345
+account   = "SLALOM-SNOWFLAKE_ILABS_VANCOUVER"       # e.g., abcde-xy12345
 user      = "BIDYUT.B@SLALOM.COM"     # your SSO-mapped Snowflake LOGIN_NAME
 role      = "SNOWFLAKE-ILABS-VANCOUVER-ADMINS"
 warehouse = "DEMO_WH"
