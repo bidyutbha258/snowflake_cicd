@@ -65,7 +65,6 @@ const silver_dt    = ent.getColumnValue(2);
 const BRONZE_FQN = `${BRONZE_DB}.RAW.${bronze_table}`;
 const REG_FQN    = `${CTL_DB}.${CTL_SCHEMA}.SILVER_PATH_REGISTRY`;
 const LOG_FQN    = `${CTL_DB}.${CTL_SCHEMA}.SILVER_EVOLUTION_LOG`;
-const LOAD_MONITOR_LOG_FQN    = `${CTL_DB}.${CTL_SCHEMA}.LOAD_LOG_MONITOR`;
 const DT_FQN     = `${SILVER_DB}.CORE.${silver_dt}`;
 const run_id     = `${ENTITY_NAME}-${Date.now()}`;
 

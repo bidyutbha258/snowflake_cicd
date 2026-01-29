@@ -2,7 +2,7 @@ select * from POC_FINANCE_CTL.ADMIN.SILVER_PATH_REGISTRY order by 1;
 
 -- Schema evolution example
 
-select * from POC_FINANCE_CTL.ADMIN.SILVER_PATH_REGISTRY where entity_name='customer'; -- 9 columns
+select * from POC_FINANCE_CTL.ADMIN.SILVER_PATH_REGISTRY where entity_name='customer' order by last_inferred_ts desc; -- 9 columns
 
 
 
@@ -16,6 +16,13 @@ SELECT PARSE_JSON('{
   "customer_id":"C-1003","first_name":"Noah","last_name":"Singh",
   "email":"noah.singh@example.com","phone":"+1-604-555-0300",
   "dob":"1992-12-01","country":"CA","segment":"PREMIUM","landline":"+1-604-999-0900"
+}'), DATEADD('day', 30, CURRENT_TIMESTAMP());
+
+INSERT INTO POC_Finance_BRONZE.RAW.CUSTOMERS_RAW(RAW, _INGEST_TS)
+SELECT PARSE_JSON('{
+  "customer_id":"C-2090","first_name":"BidsY","last_name":"X",
+  "email":"bids.b@mytest.com","phone":"+1-980-111-111",
+  "dob":"1999-12-31","country":"CA","segment":"Home Service","landline":"+1-980-111-112"
 }'), DATEADD('day', 30, CURRENT_TIMESTAMP());
 
 select * from POC_FINANCE_BRONZE.RAW.CUSTOMERS_RAW;
@@ -48,9 +55,14 @@ load_status boolean,
 message varchar);
 
 -- 
-INSERT INTO POC_FINANCE_CTL.ADMIN.Load_Log_Monitor
-(RUN_ID, Stage,Source_Object,Destination_Object,load_status,message)
-values
-(Run_id,'load_from_bronze_to_silver','POC_FINANCE_BRONZE.RAW.CUSTOMERS_RAW','POC_FINANCE_SILVER.CORE.S_CUSTOMER_DT',1, 'Successfully loaded');
+-- INSERT INTO POC_FINANCE_CTL.ADMIN.Load_Log_Monitor
+-- (RUN_ID, Stage,Source_Object,Destination_Object,load_status,message)
+-- values
+-- (Run_id,'load_from_bronze_to_silver','POC_FINANCE_BRONZE.RAW.CUSTOMERS_RAW','POC_FINANCE_SILVER.CORE.S_CUSTOMER_DT',1, 'Successfully loaded');
 
 select * from POC_FINANCE_CTL.ADMIN.Load_Log_Monitor;
+
+  CALL POC_Finance_CTL.ADMIN.SP_EVOLVE_SILVER_DT('banking','customer');
+
+
+  select * from POC_FINANCE_CTL.ADMIN.V_NO_NEW_ROWS_CANDIDATES;
