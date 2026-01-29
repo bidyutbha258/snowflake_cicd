@@ -4,7 +4,7 @@ select * from POC_FINANCE_CTL.ADMIN.SILVER_PATH_REGISTRY order by 1;
 
 select * from POC_FINANCE_CTL.ADMIN.SILVER_PATH_REGISTRY where entity_name='customer' order by last_inferred_ts desc; -- 9 columns
 
-
+select * from POC_FINANCE_CTL.ADMIN.ENTITIES;
 
 -- Last 10 columns , after adding 1 field to customer JSON, 'action'= REBUILD_DT and 'Details' should show 'Rebuilt with 11 columns' 
 select * from POC_FINANCE_CTL.ADMIN.SILVER_EVOLUTION_LOG where entity_name ='customer' order by event_ts desc; --
@@ -15,7 +15,7 @@ INSERT INTO POC_Finance_BRONZE.RAW.CUSTOMERS_RAW(RAW, _INGEST_TS)
 SELECT PARSE_JSON('{
   "customer_id":"C-1003","first_name":"Noah","last_name":"Singh",
   "email":"noah.singh@example.com","phone":"+1-604-555-0300",
-  "dob":"1992-12-01","country":"CA","segment":"PREMIUM","landline":"+1-604-999-0900"
+  "dob":"1992-12-01","country":"CA","segment":"PREMIUM","landline":"+1-604-999-0900","marital_status":"Single"
 }'), DATEADD('day', 30, CURRENT_TIMESTAMP());
 
 INSERT INTO POC_Finance_BRONZE.RAW.CUSTOMERS_RAW(RAW, _INGEST_TS)
@@ -62,7 +62,14 @@ message varchar);
 
 select * from POC_FINANCE_CTL.ADMIN.Load_Log_Monitor;
 
-  CALL POC_Finance_CTL.ADMIN.SP_EVOLVE_SILVER_DT('banking','customer');
+select * from POC_FINANCE_CTL.ADMIN.SILVER_EVOLUTION_LOG limit 1;
+
+select el.*,lm.* from POC_FINANCE_CTL.ADMIN.SILVER_EVOLUTION_LOG as el
+join POC_FINANCE_CTL.ADMIN.Load_Log_Monitor as lm
+on el.run_id=lm.run_id;
+
+
+  --CALL POC_Finance_CTL.ADMIN.SP_EVOLVE_SILVER_DT('banking','customer');
 
 
   select * from POC_FINANCE_CTL.ADMIN.V_NO_NEW_ROWS_CANDIDATES;

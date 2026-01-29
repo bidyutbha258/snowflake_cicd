@@ -7,7 +7,7 @@ function exec(sql, binds){
   return snowflake.createStatement({sqlText: sql, binds: binds}).execute(); 
 }
 
-/* ---------- helpers ---------- */
+/* ---------- JAVASRIPT -- helper functions ---------- */
 function stripBracketQuotes(p) {
   var s = String(p);
   if ((s.indexOf("[''") === 0 && s.lastIndexOf("'']") === s.length - 2) || (s.indexOf(''["'') === 0 && s.lastIndexOf(''"]'') === s.length - 2)) {
@@ -35,7 +35,7 @@ function makeJsonExpr(path) {
   return "raw:" + parts.join('':'');
 }
 
-/* ---------- config ---------- */
+/* ---------- Read configurations from POC_Finance_CTL.ADMIN.PIPELINE_CONFIG ---------- */
 var env = ''POC'';
 try {
   var rsEnv = exec(
@@ -49,7 +49,7 @@ try {
   // default to ''POC''
 }
 
-/* Compose DB names from env */
+/* Compose DB names from environment */
 var BRONZE_DB     = env + "_Finance_BRONZE";
 var SILVER_DB     = env + "_Finance_SILVER";
 var GOLD_DB       = env + "_Finance_GOLD";
@@ -61,7 +61,7 @@ var WH            = env + "_FINANCE_WH";
 var CTL_DB        = "POC_Finance_CTL";
 var CTL_SCHEMA    = "ADMIN";
 
-/* entity mapping */
+/* entity mapping, maps bronze layer & silver layer entities */
 var ent = exec(
   "SELECT bronze_table, silver_dt " +
   "  FROM " + CTL_DB + "." + CTL_SCHEMA + ".ENTITIES " +
@@ -72,24 +72,24 @@ if (!ent.next()) throw "Unknown entity " + ENTITY_NAME;
 var bronze_table = ent.getColumnValue(1);
 var silver_dt    = ent.getColumnValue(2);
 
-/* FQNs */
+/* FQN of Control tables */
 var BRONZE_FQN = BRONZE_DB + ".RAW." + bronze_table;
 var REG_FQN    = CTL_DB + "." + CTL_SCHEMA + ".SILVER_PATH_REGISTRY";
 var LOG_FQN    = CTL_DB + "." + CTL_SCHEMA + ".SILVER_EVOLUTION_LOG";
 var LOAD_MONITOR_LOG_FQN = CTL_DB + "." + CTL_SCHEMA + ".LOAD_LOG_MONITOR";
 var DT_FQN     = SILVER_DB + ".CORE." + silver_dt;
 
-/* Run id */
+/* Generate unique Run id for each batch run */
 var run_id     = ENTITY_NAME + "-" + Date.now();
 
 /* ---------- monitoring vars ---------- */
 var new_rows_inserted = 0;        // rows newly arriving in Bronze since max Silver ingest ts
-var rows_updated      = 0;        // DTs are append/transform; set 0 unless you use MERGE elsewhere
+var rows_updated      = 0;        // DTs are append/transform; hardcoded to 0 unless you use MERGE to silver layer
 var Stage             = "load_from_bronze_to_silver";
 var Source_Object     = BRONZE_FQN;
 var Destination_Object= DT_FQN;
 var load_status       = 1;        // 1=success, 0=failure
-var message           = "";
+var message           = ""; // We form the message on the fly
 
 /* ---------- 1) Discover JSON keys + inferred types from Bronze ---------- */
 var discoverSQL = ""
@@ -113,7 +113,8 @@ var discoverSQL = ""
 + "WHERE raw_path NOT LIKE ''%INDEX%''";
 var rs = exec(discoverSQL, []);
 
-/* Upsert to registry */
+/* Upsert to the registry if new field/s are found in the entity in the Silver layer  */
+
 while (rs.next()) {
   var raw_path = String(rs.getColumnValue(1));
   var typ      = String(rs.getColumnValue(2));
@@ -138,7 +139,7 @@ while (rs.next()) {
   );
 }
 
-/* ---------- 2) Build SELECT list from registry ---------- */
+/* ---------- 2) Build SELECT using field list from registry for a specific entity---------- */
 var sel = exec(
   "SELECT path, column_name, snowflake_type \\n" +
   "  FROM " + REG_FQN + " \\n" +
@@ -158,7 +159,7 @@ while (sel.next()) {
                                            : (jsonExpr + "::" + typ);
   selectCols.push(castExpr + " AS " + col);
 }
-/* capture source ingest ts from Bronze as a separate column in Silver */
+/* capture source ingest timestamp from Bronze as a separate column in Silver */
 selectCols.push("_ingest_ts AS _src_ingest_ts");
 
 /* ---------- 3) Detect new Bronze rows relative to current Silver ---------- */
@@ -168,7 +169,7 @@ try {
   var rsMax = exec("SELECT MAX(_src_ingest_ts) FROM " + DT_FQN, []);
   if (rsMax.next()) max_silver_ts = rsMax.getColumnValue(1);
 } catch (e) {
-  /* DT may not exist yet on first run; that''s fine. */
+  /* The Dynamic Table in the Silver layer may not exist in the first run */
 }
 
 /* Count rows in Bronze newer than Silver''s max _src_ingest_ts */
@@ -202,7 +203,7 @@ var ddl = ""
 try {
   exec(ddl, []);
 
-  /* evolution log: rebuild */
+  /* evolution log: rebuild event*/
   try {
     exec(
       "INSERT INTO " + LOG_FQN + "(run_id, entity_name, action, details) " +
@@ -214,7 +215,7 @@ try {
   /* optional manual refresh (note: asynchronous) */
   exec("ALTER DYNAMIC TABLE " + DT_FQN + " REFRESH", []);
 
-  /* evolution log: refresh */
+  /* evolution log: refresh event*/
   try {
     exec(
       "INSERT INTO " + LOG_FQN + "(run_id, entity_name, action, details) " +
@@ -233,7 +234,8 @@ try {
 }
 
 /* ---------- 5) Insert Monitoring Log ---------- */
-/* rows_updated is 0 for DT-based flows; set by MERGE if you switch approach later */
+/* rows_updated is set to 0 for Dynamic Table Create or Replace; set by MERGE if you switch approach later, this for consideration later
+Merge will have different set of challenges */
 try {
   exec(
     "INSERT INTO " + LOAD_MONITOR_LOG_FQN + " \\n" +
