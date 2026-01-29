@@ -25,8 +25,10 @@ SELECT PARSE_JSON('{
   "dob":"1999-12-31","country":"CA","segment":"Home Service","landline":"+1-980-111-112"
 }'), DATEADD('day', 30, CURRENT_TIMESTAMP());
 
-select * from POC_FINANCE_BRONZE.RAW.CUSTOMERS_RAW;
 
+
+select * from POC_FINANCE_BRONZE.RAW.CUSTOMERS_RAW;
+select * from SCD2_CUSTOMER_STAGE_TR;
 select * from POC_FINANCE_SILVER.CORE.S_CUSTOMER_DT;
 
 select * from POC_FINANCE_GOLD.MARTS.DIM_CUSTOMER;
@@ -72,4 +74,11 @@ on el.run_id=lm.run_id;
   --CALL POC_Finance_CTL.ADMIN.SP_EVOLVE_SILVER_DT('banking','customer');
 
 
+select * from 
+
   select * from POC_FINANCE_CTL.ADMIN.V_NO_NEW_ROWS_CANDIDATES;
+
+  Truncate table POC_FINANCE_BRONZE.RAW.CUSTOMERS_RAW;
+   Truncate table POC_FINANCE_BRONZE.RAW.SCD2_CUSTOMER_STAGE_TR;
+
+    Truncate table POC_FINANCE_SILVER.CORE.S_CUSTOMER_DT;
